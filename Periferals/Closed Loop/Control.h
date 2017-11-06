@@ -9,13 +9,13 @@
 	void calibrate();
 
 	// - direction(bool)
-	void direction(bool direction);
+	void setDirection(bool dir);
 
 	// - easing(type) ?? // could choose between easing functions
 	void easing(char type);
 
 	// - enable(bool)
-	viod enable(bool enabled);
+	void enable(bool en);
 
 	// - lock() // holds at current position with feedback & torque
 	void lock();
@@ -24,10 +24,10 @@
 	void printAngle();
 
 	// - readRawAngle() // returns raw angle
-	void readRawAngle();
+	int readRawAngle();
 
 	// - readDegAngle() // returns deg angle
-	void readDegAngle();
+	int readDegAngle();
 
 	// - setMin([Optional: angle])
 	void setMin(long angle);
@@ -36,10 +36,10 @@
 	void setMax(long angle);
 
 	// - step(speed) - speed is the pulse width
-	void step(int speed)
+	void step(int speed);
 
 	// - steps(count, dir)
-	void steps(int count, bool direction);
+	void steps(int count, bool dir);
 
 	// - goto(theta, duration, easing)
 	void stepto(long theta, int duration, char easing);

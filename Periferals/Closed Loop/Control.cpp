@@ -20,7 +20,7 @@ void calibrate() {
   SerialUSB.println("TODO: calibrate");
 }
 
-void direction(bool direction) {
+void setDirection(bool dir) {
   SerialUSB.println("TESTING: direction");
   if (direction) digitalWrite(dirPin, HIGH);
   else digitalWrite(dirPin, LOW);
@@ -31,7 +31,7 @@ void easing(char type) {
   SerialUSB.println("TODO: easing");
 }
 
-void enable(bool enabled) {
+void enable(bool en) {
   SerialUSB.println("TODO: enable");
 }
 
@@ -52,12 +52,12 @@ void printAngle() {
 }
 
 // returns raw angle
-void readRawAngle() {
+int readRawAngle() {
   return amsInstance.angleR(1, true);
 }
 
 // returns deg angle
-void readDegAngle() {
+int readDegAngle() {
   return amsInstance.angleR(3, true);
 }
 
@@ -82,7 +82,7 @@ void step(int speed) {
   delayMicroseconds(speed);
 }
 
-void steps(int count, bool direction) {
+void steps(int count, bool dir) {
   SerialUSB.println("TODO: steps");
   // direction(direction);
 
@@ -95,6 +95,21 @@ void steps(int count, bool direction) {
 void stepto(long theta, int duration, char easing) {
   SerialUSB.println("TODO: stepto");
 }
+
+
+void serialMenu() {
+  SerialUSB.println("");
+  SerialUSB.println("----- Closed Loop Control -----");
+  SerialUSB.println("");
+  SerialUSB.println("Menu");
+  SerialUSB.println("");
+  SerialUSB.println(" s  -  step");
+  SerialUSB.println(" d  -  dir");
+  SerialUSB.println(" p  -  print angle");
+  SerialUSB.println(" m  -  print main menu");
+  SerialUSB.println("");
+}
+
 
 
 
@@ -112,23 +127,23 @@ void serialCheck() {
         break;
 
       case 's': //step
-        step();
+        step(400);
         printAngle();
         break;
 
       case 'd': //dir
-        if (dir) {
-          dir = false;
+        if (direction) {
+          direction = false;
         } else {
-          dir = true;
+          direction = true;
         }
         break;
 
       case 'r':             //new setpoint
         SerialUSB.println("Enter setpoint:");
         while (SerialUSB.available() == 0)  {}
-        r = SerialUSB.parseFloat();
-        SerialUSB.println(r);
+//        r = SerialUSB.parseFloat();
+//        SerialUSB.println(r);
         break;
 
       case 'm':
@@ -141,23 +156,6 @@ void serialCheck() {
   }
 
 }
-
-
-void serialMenu() {
-  SerialUSB.println("");
-  SerialUSB.println("----- Closed Loop Control -----");
-  SerialUSB.print("Identifier: ");
-  SerialUSB.println(identifier);
-  SerialUSB.println("");
-  SerialUSB.println("Menu");
-  SerialUSB.println("");
-  SerialUSB.println(" s  -  step");
-  SerialUSB.println(" d  -  dir");
-  SerialUSB.println(" p  -  print angle");
-  SerialUSB.println(" m  -  print main menu");
-  SerialUSB.println("");
-}
-
 // for non-peoples
 // - Send distance, time
 // - lock - auto correct if change

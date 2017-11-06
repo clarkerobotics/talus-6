@@ -5,7 +5,7 @@
 // Vars
 extern bool direction;
 extern int duration; // in millis
-extern char easing;
+extern char easingType;
 extern bool enabled;
 extern int stepNumber;
 extern volatile long stepTotal;
@@ -14,8 +14,9 @@ extern volatile long thetaMax;
 extern volatile long thetaMin;
 
 // Pins
-int dirPin;
-int enablePin;
-int stepPin;
+extern int ledPin;
+extern int dirPin;
+extern int enablePin;
+extern int stepPin;
 
 #endif

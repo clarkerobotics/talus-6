@@ -12,6 +12,7 @@ volatile long thetaMax = 0;
 volatile long thetaMin = 0;
 
 // Pins
-dirPin = 14;
-enablePin = 15;
-stepPin = 23;
+int ledPin = 13;
+int dirPin = 14;
+int enablePin = 15;
+int stepPin = 23;
