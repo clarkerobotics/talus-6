@@ -12,6 +12,8 @@ extern volatile long stepTotal;
 extern volatile long theta;
 extern volatile long thetaMax;
 extern volatile long thetaMin;
+extern int maxSpeed;
+extern int minSpeed;
 
 // Pins
 extern int ledPin;

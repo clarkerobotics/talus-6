@@ -11,6 +11,11 @@ volatile long theta = 0;
 volatile long thetaMax = 0;
 volatile long thetaMin = 0;
 
+// Speed: in microseconds
+// lower number means faster!
+int maxSpeed = 2000;
+int minSpeed = 360;
+
 // Pins
 int ledPin = 13;
 int dirPin = 14;
