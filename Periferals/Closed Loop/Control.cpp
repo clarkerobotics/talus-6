@@ -12,20 +12,14 @@ void setupPins() {
   pinMode(stepPin, OUTPUT);
 }
 
+void setDirection(int dir) {
+  if (dir == 1) digitalWrite(dirPin, HIGH);
+  else digitalWrite(dirPin, LOW);
+}
+
 void setupI2C() {
   amsInstance.begin();
-}
-
-// bounces between min/max?
-// goes full revolution and returns total steps?
-void calibrate() {
-  SerialUSB.println("TODO: calibrate");
-}
-
-void setDirection(bool dir) {
-  SerialUSB.println("TESTING: direction");
-  if (dir) digitalWrite(dirPin, HIGH);
-  else digitalWrite(dirPin, LOW);
+  setDirection(0);
 }
 
 // could choose between easing functions
@@ -85,8 +79,8 @@ float easeInSine(float t) {
 }
 
 // return number between 0 & 1
-float norm(float val) {
-  return 1 - ((val - minSpeed) / (maxSpeed - minSpeed));
+float norm(float val, float min, float max) {
+  return 1 - ((val - min) / (max - min));
 }
 
 // return number between min & max
@@ -103,21 +97,28 @@ void step(int speed) {
   delayMicroseconds(speed);
 }
 
+// Helps loop steps to simple speed
+void loopSteps(int count, int sp) {
+  for (int i = 0; i < count; i++) {
+    step(160);
+    delayMicroseconds(sp);
+  }
+}
+
 // Execute steps in given direction
-void steps(int count, bool dir) {
+// NOTE: Direction must be given first
+void steps(int count) {
   SerialUSB.print("TODO: steps ");
   SerialUSB.println(count);
   int half = count / 2;
+  int quarter = count / 4;
   float speed = minSpeed;
   float ease = 0;
   float p = 0;
 
-  // Go this wayyyyy
-  setDirection(dir);
-
   // Step through half
-  for (int i = 1; i < half; i++) {
-    p = norm(i);
+  for (int i = 1; i < quarter; i++) {
+    p = norm(i, 0, quarter);
     ease = easeInSine(p);
     speed = denorm(ease);
     if (speed < 260) speed = 260;
@@ -125,9 +126,11 @@ void steps(int count, bool dir) {
     delayMicroseconds(speed);
   }
 
+  loopSteps(half, speed);
+
   // Step through other half
-  for (int x = half; x > 1; x--) {
-    p = norm(x);
+  for (int x = quarter; x > 0; x--) {
+    p = norm(x, 0, quarter);
     ease = easeInSine(p);
     speed = denorm(ease);
     speed = speed;
@@ -143,6 +146,72 @@ void steps(int count, bool dir) {
 // - travel & lock to given angle position
 void stepto(long theta, int duration, char easing) {
   SerialUSB.println("TODO: stepto");
+}
+
+int getFullRevolutionSteps() {
+  // Get zero
+  int tmpZero = readDegAngle();
+  volatile int tmpAngle = tmpZero + 1;
+  volatile int tmpStepsTotal = 0;
+
+  // run initial steps, so we dont read the same initial angle
+  for (int x = 0; x < 100; x++) {
+    step(160);
+    delayMicroseconds(400);
+    tmpStepsTotal++;
+  }
+  
+  // Run loop to find step count, only stops if found range
+  while (tmpAngle != tmpZero && tmpStepsTotal < 8000) {
+    // run more steps
+    step(160);
+    delayMicroseconds(400);
+    tmpStepsTotal++;
+
+    // Check the angle
+    tmpAngle = readDegAngle();
+  }
+
+  delay(200);
+  return tmpStepsTotal;
+}
+
+// bounces between min/max?
+// goes full revolution and returns total steps?
+void calibrate() {
+  SerialUSB.println("Calibrating...");
+  // Setup
+  int avg[5];
+  setDirection(1);
+
+  // Get first step total
+  avg[0] = getFullRevolutionSteps();
+
+  // Validate step total 4 more times
+  avg[1] = getFullRevolutionSteps();
+  avg[2] = getFullRevolutionSteps();
+  // switch direction for sanity??
+  setDirection(0);
+  avg[3] = getFullRevolutionSteps();
+  avg[4] = getFullRevolutionSteps();
+
+  // Average all steps
+  int avgDiv = 5;
+  int avgTotal = 0;
+  long average = 0;
+  for (int x = 0; x < avgDiv; x++) {
+    avgTotal += avg[x];
+  }
+  average = avgTotal / avgDiv;
+
+  // Store step total
+  // TODO: EEPROM?
+  stepTotal = average;
+  SerialUSB.print("Total Steps Found: ");
+  SerialUSB.println(stepTotal);
+
+  // calibration complete
+  SerialUSB.print("Calibration Complete! :D");
 }
 
 
@@ -162,8 +231,11 @@ void serialMenu() {
   SerialUSB.println(" s  -  step");
   SerialUSB.println(" u  -  steps: 40 default");
   SerialUSB.println(" t  -  steps: t0000");
-  SerialUSB.println(" d  -  dir");
+  SerialUSB.println(" d  -  dir: 0 | 1");
   SerialUSB.println(" p  -  print angle");
+  SerialUSB.println(" ");
+  SerialUSB.println(" c  -  calibrate - finds steps, angle, zero, etc");
+  SerialUSB.println(" ");
   SerialUSB.println(" m  -  print main menu");
   SerialUSB.println("");
 }
@@ -172,59 +244,56 @@ void serialMenu() {
 
 
 //Monitors serial for commands.  Must be called in routinely in loop for serial interface to work.
-void serialCheck() {
+void serialOptions(String stringToParse) {
   int stepsToGo = 0;
+  char inChar = stringToParse.charAt(0);
+  SerialUSB.print("inChar: ");
+  SerialUSB.println(inChar);
 
-  if (SerialUSB.available()) {
+  switch (inChar) {
 
-    char inChar = (char)SerialUSB.read();
-    String chars = SerialUSB.read();
+    case 'c': //calibrate
+      calibrate();
+      break;
 
-    switch (inChar) {
+    case 'p': //print
+      printAngle();
+      break;
 
-      case 'p': //print
-        printAngle();
-        break;
+    case 'u': //steps test
+      steps(3400);
+      printAngle();
+      break;
 
-      case 'u': //steps test
-        steps(1400, HIGH);
-//        printAngle();
-        break;
+    case 's': //step
+      step(400);
+      printAngle();
+      break;
 
-      case 's': //step
-        step(400);
-        printAngle();
-        break;
+    case 't': //steps & amount
+      stepsToGo = getCommandPayload(stringToParse);
+      steps(stepsToGo);
+      printAngle();
+      break;
 
-      case 't': //steps & amount
-        stepsToGo = getCommandPayload(chars);
-        // TODO: dir!
-        steps(stepsToGo, HIGH);
-        // printAngle();
-        break;
+    case 'd': //dir
+      direction = getCommandPayload(stringToParse);
+      setDirection(direction);
+      break;
 
-      case 'd': //dir
-        if (direction) {
-          direction = false;
-        } else {
-          direction = true;
-        }
-        break;
-
-      case 'r':             //new setpoint
-        SerialUSB.println("Enter setpoint:");
-        while (SerialUSB.available() == 0)  {}
+    case 'r':             //new setpoint
+      SerialUSB.println("Enter setpoint:");
+      while (SerialUSB.available() == 0)  {}
 //        r = SerialUSB.parseFloat();
 //        SerialUSB.println(r);
-        break;
+      break;
 
-      case 'm':
-        serialMenu();
-        break;
+    case 'm':
+      serialMenu();
+      break;
 
-      default:
-        break;
-    }
+    default:
+      break;
   }
 
 }
@@ -237,4 +306,26 @@ void serialCheck() {
 // - calibrate
 void serialMachineMenu() {
   SerialUSB.println("TODO: Machine Version!");
+}
+
+void serialCheck() {
+  // Checks for and processes any serial input
+  static String inputString = "";
+  static boolean inputStringComplete = false;
+  while (Serial.available()) {
+    // Read and add the new character
+    char inChar = (char)Serial.read();
+    inputString += inChar;
+    // if the incoming character is a newline, then the string is complete
+    if (inChar == '\n') {
+      inputStringComplete = true;
+      break;                          // Stop here even if more characters are in buffer
+    }
+  }
+  // If a complete message is available, parse it, then clear the buffer before returning
+  if (inputStringComplete == true) {
+    serialOptions(inputString);
+    inputString = "";
+    inputStringComplete = false;
+  }
 }

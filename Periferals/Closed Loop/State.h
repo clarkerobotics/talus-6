@@ -8,7 +8,7 @@ extern int duration; // in millis
 extern char easingType;
 extern bool enabled;
 extern int stepNumber;
-extern volatile long stepTotal;
+extern int stepTotal;
 extern volatile long theta;
 extern volatile long thetaMax;
 extern volatile long thetaMin;

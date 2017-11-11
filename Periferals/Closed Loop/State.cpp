@@ -1,20 +1,21 @@
 // State variables for the control loop
 
 // Vars
-bool direction = false;
+int direction = 0;
 int duration = 3000;
 char easing;
 bool enabled = false;
-volatile int stepNumber = 0;
-volatile long stepTotal = 0;
+int stepTotal = 0;
+int stepNumber = 0;
 volatile long theta = 0;
 volatile long thetaMax = 0;
 volatile long thetaMin = 0;
 
 // Speed: in microseconds
 // lower number means faster!
+// depends on full/half/quarter stepping
 int maxSpeed = 2000;
-int minSpeed = 360;
+int minSpeed = 260;
 
 // Pins
 int ledPin = 13;
