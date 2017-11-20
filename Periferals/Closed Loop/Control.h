@@ -43,8 +43,8 @@
 	// - steps(count, dir)
 	void steps(int count, bool dir);
 
-	// - goto(theta, duration, easing)
-	void stepto(long theta, int duration, char easing);
+	// - stepTo(angle, duration)
+	void stepTo(int ang, int duration);
 
 	// - serialCheck()
 	void serialCheck();

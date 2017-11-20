@@ -108,8 +108,6 @@ void loopSteps(int count, int sp) {
 // Execute steps in given direction
 // NOTE: Direction must be given first
 void steps(int count) {
-  SerialUSB.print("TODO: steps ");
-  SerialUSB.println(count);
   int half = count / 2;
   int quarter = count / 4;
   float speed = minSpeed;
@@ -138,14 +136,6 @@ void steps(int count) {
     step(160);
     delayMicroseconds(speed);
   }
-}
-
-// Idea:
-// - get desired angle, duration, and optional easingType
-// - check that it doesnt exceed min/max
-// - travel & lock to given angle position
-void stepto(long theta, int duration, char easing) {
-  SerialUSB.println("TODO: stepto");
 }
 
 int getFullRevolutionSteps() {
@@ -215,6 +205,56 @@ void calibrate() {
 }
 
 
+// stepTo
+// - set desired angle, duration
+// - check that it doesnt exceed min/max
+// - travel & lock to given angle position
+void stepTo(int ang, int duration) {
+  // Get start point
+  int tmpStart = readDegAngle();
+  SerialUSB.print("Going to...");
+  SerialUSB.println(ang);
+
+  // Get steps needed
+  int angDiff = tmpStart - ang;
+  float angAbs = abs(angDiff);
+
+  // Set direction
+  int tmpDir = 0;
+  SerialUSB.print("Curr: ");
+  SerialUSB.print(tmpStart);
+  SerialUSB.print(" Diff: ");
+  SerialUSB.println(angDiff);
+  SerialUSB.println(angAbs);
+
+  if (angDiff < 0) tmpDir = 1;
+  else tmpDir = 0;
+  SerialUSB.print("Direction: ");
+  SerialUSB.println(tmpDir);
+  setDirection(tmpDir);
+
+  // Set duration (TODO:)
+  int tmpDur = 3000;
+  
+  // Calculate & Fire steps
+  // If no known stepTotal, report error?
+  if (stepTotal == 0) stepTotal = 4400;
+  float stepOffset = (angAbs / 360) * stepTotal;
+  int goToSteps = stepOffset;
+  SerialUSB.print("Step Offset: ");
+  SerialUSB.println(stepOffset);
+  steps(goToSteps);
+  delay(2);
+  int finAngle = readDegAngle();
+  SerialUSB.print("finAngle: ");
+  SerialUSB.println(finAngle);
+
+  // Finally, angle correction
+  delay(340);
+  if (finAngle != ang) stepTo(ang, 400);
+}
+
+
 float getCommandPayload(String stringWithPayload) {
   // Extracts the numeric payload from a command
   // Just skip the first character to get the payload, and parse it as a float
@@ -228,64 +268,52 @@ void serialMenu() {
   SerialUSB.println("");
   SerialUSB.println("Menu");
   SerialUSB.println("");
-  SerialUSB.println(" s  -  step");
-  SerialUSB.println(" u  -  steps: 40 default");
-  SerialUSB.println(" t  -  steps: t0000");
-  SerialUSB.println(" d  -  dir: 0 | 1");
+  SerialUSB.println(" s  -  step short distance");
+  SerialUSB.println(" u  -  steps demo: 3400 default");
+  SerialUSB.println(" t  -  step input: t0000");
+  SerialUSB.println(" d  -  dir: d0 -> 0 | 1");
   SerialUSB.println(" p  -  print angle");
   SerialUSB.println(" ");
   SerialUSB.println(" c  -  calibrate - finds steps, angle, zero, etc");
+  SerialUSB.println(" r  -  set point - r000 -> r270, use DEG");
   SerialUSB.println(" ");
   SerialUSB.println(" m  -  print main menu");
   SerialUSB.println("");
 }
 
-
-
-
 //Monitors serial for commands.  Must be called in routinely in loop for serial interface to work.
 void serialOptions(String stringToParse) {
   int stepsToGo = 0;
   char inChar = stringToParse.charAt(0);
-  SerialUSB.print("inChar: ");
-  SerialUSB.println(inChar);
 
   switch (inChar) {
-
     case 'c': //calibrate
       calibrate();
       break;
-
     case 'p': //print
       printAngle();
       break;
-
     case 'u': //steps test
       steps(3400);
       printAngle();
       break;
-
-    case 's': //step
-      step(400);
+    case 's': //step short distance
+      steps(50);
       printAngle();
       break;
-
     case 't': //steps & amount
       stepsToGo = getCommandPayload(stringToParse);
       steps(stepsToGo);
       printAngle();
       break;
-
     case 'd': //dir
       direction = getCommandPayload(stringToParse);
       setDirection(direction);
       break;
 
-    case 'r':             //new setpoint
-      SerialUSB.println("Enter setpoint:");
-      while (SerialUSB.available() == 0)  {}
-//        r = SerialUSB.parseFloat();
-//        SerialUSB.println(r);
+    case 'r': //new setpoint
+      stepsToGo = getCommandPayload(stringToParse);
+      stepTo(stepsToGo, 3000);
       break;
 
     case 'm':
