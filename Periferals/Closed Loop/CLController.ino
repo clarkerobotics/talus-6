@@ -14,6 +14,7 @@ void setup() {
   delay(300);                       // This delay seems to make it easier to establish a connection
   serialMenu();                     // Prints menu to serial monitor
   setupI2C();                       // Communicating with encoder
+  retrieveSettings();               // Read stored settings/defaults
   digitalWrite(ledPin, LOW);        // turn LED off
 }
 

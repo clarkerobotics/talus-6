@@ -5,7 +5,6 @@
 // Vars
 extern bool direction;
 extern int duration; // in millis
-extern char easingType;
 extern bool enabled;
 extern int stepNumber;
 extern int stepTotal;

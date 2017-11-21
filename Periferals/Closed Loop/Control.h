@@ -7,23 +7,25 @@
 	void setupPins();
 	void setupI2C();
 
-	// - calibrate() ?? // bounces between min/max
+	// bounces between min/max
 	void calibrate();
 
-	// - direction(bool)
+	// - setDirection(bool)
 	void setDirection(bool dir);
-
-	// - easing(type) ?? // could choose between easing functions
-	void easing(char type);
 
 	// - enable(bool)
 	void enable(bool en);
+
+  // Settings
+  void saveSettings();
+  void retrieveSettings();
 
 	// - lock() // holds at current position with feedback & torque
 	void lock();
 
 	// - printAngle() // returns angles
 	void printAngle();
+  void printMotorSteps();
 
 	// - readRawAngle() // returns raw angle
 	int readRawAngle();

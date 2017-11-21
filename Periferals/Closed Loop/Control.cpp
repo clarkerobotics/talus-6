@@ -1,6 +1,7 @@
 #include <math.h>
 #include <Wire.h>
 #include <ams_as5048b.h>
+#include <EEPROM.h>
 #include "State.h"
 
 AMS_AS5048B amsInstance;
@@ -22,13 +23,51 @@ void setupI2C() {
   setDirection(0);
 }
 
-// could choose between easing functions
-void easing(char type) {
-  SerialUSB.println("TODO: easing");
-}
-
 void enable(bool en) {
   SerialUSB.println("TODO: enable");
+}
+
+// Settings
+// Saves all settings in EEPROM
+void saveSettings() {
+  // Set EEPROM memory valid flag
+  EEPROM.write(0, 0x01);
+  // Store all numbers in little-endian format
+  EEPROM.write(1, lowByte(direction));
+  EEPROM.write(2, highByte(direction));
+  EEPROM.write(3, lowByte(stepTotal));
+  EEPROM.write(4, highByte(stepTotal));
+  EEPROM.write(5, lowByte(theta));
+  EEPROM.write(6, highByte(theta));
+  EEPROM.write(7, lowByte(thetaMax));
+  EEPROM.write(8, highByte(thetaMax));
+  EEPROM.write(9, lowByte(thetaMin));
+  EEPROM.write(10, highByte(thetaMin));
+  EEPROM.write(11, lowByte(maxSpeed));
+  EEPROM.write(12, highByte(maxSpeed));
+  EEPROM.write(13, lowByte(minSpeed));
+  EEPROM.write(14, highByte(minSpeed));
+}
+void retrieveSettings() {
+  if (EEPROM.read(0) ==  0x01) {
+    // Only load if valid data has been stored in EEPROM
+    direction = EEPROM.read(1) + 256 * EEPROM.read(2);
+    stepTotal = EEPROM.read(3) + 256 * EEPROM.read(4);
+    theta = EEPROM.read(5) + 256 * EEPROM.read(6);
+    thetaMax = EEPROM.read(7) + 256 * EEPROM.read(8);
+    thetaMin = EEPROM.read(9) + 256 * EEPROM.read(10);
+    maxSpeed = EEPROM.read(11) + 256 * EEPROM.read(12);
+    minSpeed = EEPROM.read(13) + 256 * EEPROM.read(14);
+  } else {
+    // NO EEPROM, Use defaults:
+    direction = 0;
+    stepTotal = 4400;
+    theta = 0;
+    thetaMax = 360;
+    thetaMin = 0;
+    maxSpeed = 260;
+    minSpeed = 2000;
+  }
 }
 
 // holds at current position with feedback & torque
@@ -60,6 +99,11 @@ void printAngle() {
   SerialUSB.print(angleDeg);
   SerialUSB.println("");
 }
+// returns stored motor steps
+void printMotorSteps() {
+  SerialUSB.print("Motor Total Steps: ");
+  SerialUSB.println(stepTotal);
+}
 
 // Optional: angle
 void setMin(long angle) {
@@ -85,7 +129,7 @@ float norm(float val, float min, float max) {
 
 // return number between min & max
 float denorm(float val) {
-  return ((maxSpeed - minSpeed) * val) + minSpeed;
+  return ((minSpeed - maxSpeed) * val) + maxSpeed;
 }
 
 // speed is the pulse width offset
@@ -201,7 +245,13 @@ void calibrate() {
   SerialUSB.println(stepTotal);
 
   // calibration complete
+  digitalWrite(ledPin, HIGH);
+  saveSettings();
   SerialUSB.print("Calibration Complete! :D");
+
+  // once EEPROM saved, turn off LED
+  delay(500);
+  digitalWrite(ledPin, LOW);
 }
 
 
@@ -212,45 +262,54 @@ void calibrate() {
 void stepTo(int ang, int duration) {
   // Get start point
   int tmpStart = readDegAngle();
-  SerialUSB.print("Going to...");
-  SerialUSB.println(ang);
 
   // Get steps needed
   int angDiff = tmpStart - ang;
   float angAbs = abs(angDiff);
+  SerialUSB.print("angAbs: ");
+  SerialUSB.println(angAbs);
 
   // Set direction
   int tmpDir = 0;
-  SerialUSB.print("Curr: ");
-  SerialUSB.print(tmpStart);
-  SerialUSB.print(" Diff: ");
-  SerialUSB.println(angDiff);
-  SerialUSB.println(angAbs);
 
   if (angDiff < 0) tmpDir = 1;
   else tmpDir = 0;
-  SerialUSB.print("Direction: ");
-  SerialUSB.println(tmpDir);
   setDirection(tmpDir);
 
   // Set duration (TODO:)
   int tmpDur = 3000;
   
   // Calculate & Fire steps
-  // If no known stepTotal, report error?
-  if (stepTotal == 0) stepTotal = 4400;
-  float stepOffset = (angAbs / 360) * stepTotal;
+  // 1. if < 360, do simple
+  // 2. if > 360, calc wrap around
+  float stepOffset;
+  if (angAbs < 360) {
+    stepOffset = (angAbs / 360) * stepTotal;
+  } else {
+    int rem = ang % 360;
+    float remTotal = (ang - rem) / 360;
+    float remSteps = (remTotal - 1) * stepTotal;
+    float angSteps = (angAbs / 360) * stepTotal;
+    float startSteps = (tmpStart / 360) * stepTotal;
+    
+    // revolution times * total steps + angle total steps - current taken steps
+    stepOffset = remSteps + angSteps - startSteps;
+
+    // Reset start angle so when we execute and end up on the far side of 360, its okay
+    ang = rem;
+    SerialUSB.print(" ang: ");
+    SerialUSB.println(ang);
+  }
+
+  //  crude convert to integer :P
   int goToSteps = stepOffset;
-  SerialUSB.print("Step Offset: ");
-  SerialUSB.println(stepOffset);
   steps(goToSteps);
-  delay(2);
-  int finAngle = readDegAngle();
-  SerialUSB.print("finAngle: ");
-  SerialUSB.println(finAngle);
 
   // Finally, angle correction
-  delay(340);
+  delay(40);
+  int finAngle = readDegAngle();
+    SerialUSB.print(" finAngle: ");
+    SerialUSB.println(finAngle);
   if (finAngle != ang) stepTo(ang, 400);
 }
 
@@ -266,18 +325,17 @@ void serialMenu() {
   SerialUSB.println("");
   SerialUSB.println("----- Closed Loop Control -----");
   SerialUSB.println("");
-  SerialUSB.println("Menu");
-  SerialUSB.println("");
   SerialUSB.println(" s  -  step short distance");
   SerialUSB.println(" u  -  steps demo: 3400 default");
   SerialUSB.println(" t  -  step input: t0000");
   SerialUSB.println(" d  -  dir: d0 -> 0 | 1");
-  SerialUSB.println(" p  -  print angle");
   SerialUSB.println(" ");
   SerialUSB.println(" c  -  calibrate - finds steps, angle, zero, etc");
   SerialUSB.println(" r  -  set point - r000 -> r270, use DEG");
   SerialUSB.println(" ");
   SerialUSB.println(" m  -  print main menu");
+  SerialUSB.println(" p  -  print angle");
+  SerialUSB.println(" x  -  print motor step total");
   SerialUSB.println("");
 }
 
@@ -292,6 +350,9 @@ void serialOptions(String stringToParse) {
       break;
     case 'p': //print
       printAngle();
+      break;
+    case 'x': //print motor steps
+      printMotorSteps();
       break;
     case 'u': //steps test
       steps(3400);

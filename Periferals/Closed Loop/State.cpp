@@ -3,7 +3,6 @@
 // Vars
 int direction = 0;
 int duration = 3000;
-char easing;
 bool enabled = false;
 int stepTotal = 0;
 int stepNumber = 0;
@@ -14,8 +13,8 @@ volatile long thetaMin = 0;
 // Speed: in microseconds
 // lower number means faster!
 // depends on full/half/quarter stepping
-int maxSpeed = 2000;
-int minSpeed = 260;
+int maxSpeed = 260;
+int minSpeed = 2000;
 
 // Pins
 int ledPin = 13;
