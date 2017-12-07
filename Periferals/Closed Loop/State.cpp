@@ -6,9 +6,9 @@ int duration = 3000;
 bool enabled = false;
 int stepTotal = 0;
 int stepNumber = 0;
-volatile long theta = 0;
-volatile long thetaMax = 0;
-volatile long thetaMin = 0;
+long theta = 0;
+long thetaMax = 0;
+long thetaMin = 0;
 
 // Speed: in microseconds
 // lower number means faster!

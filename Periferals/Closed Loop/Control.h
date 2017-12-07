@@ -33,10 +33,10 @@
 	// - readDegAngle() // returns deg angle
 	int readDegAngle();
 
-	// - setMin([Optional: angle])
+	// - setMin(theta)
 	void setMin(long angle);
 
-	// - setMax([Optional: angle])
+	// - setMax(theta)
 	void setMax(long angle);
 
 	// - step(speed) - speed is the pulse width

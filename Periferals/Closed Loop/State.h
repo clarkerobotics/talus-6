@@ -8,9 +8,9 @@ extern int duration; // in millis
 extern bool enabled;
 extern int stepNumber;
 extern int stepTotal;
-extern volatile long theta;
-extern volatile long thetaMax;
-extern volatile long thetaMin;
+extern long theta;
+extern long thetaMax;
+extern long thetaMin;
 extern int maxSpeed;
 extern int minSpeed;
 

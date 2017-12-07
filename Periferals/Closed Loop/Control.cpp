@@ -63,7 +63,7 @@ void retrieveSettings() {
     direction = 0;
     stepTotal = 4400;
     theta = 0;
-    thetaMax = 360;
+    thetaMax = 0;
     thetaMin = 0;
     maxSpeed = 260;
     minSpeed = 2000;
@@ -107,14 +107,18 @@ void printMotorSteps() {
 
 // Optional: angle
 void setMin(long angle) {
-  SerialUSB.println("TESTING: setMin");
+//  SerialUSB.print("setMin: ");
+//  SerialUSB.println(angle);
   thetaMin = angle;
+  saveSettings();
 }
 
 // Optional: angle
 void setMax(long angle) {
-  SerialUSB.println("TESTING: setMax");
+//  SerialUSB.print("setMax: ");
+//  SerialUSB.println(angle);
   thetaMax = angle;
+  saveSettings();
 }
 
 // Easing: easeInSine
@@ -239,7 +243,6 @@ void calibrate() {
   average = avgTotal / avgDiv;
 
   // Store step total
-  // TODO: EEPROM?
   stepTotal = average;
   SerialUSB.print("Total Steps Found: ");
   SerialUSB.println(stepTotal);
@@ -266,8 +269,6 @@ void stepTo(int ang, int duration) {
   // Get steps needed
   int angDiff = tmpStart - ang;
   float angAbs = abs(angDiff);
-  SerialUSB.print("angAbs: ");
-  SerialUSB.println(angAbs);
 
   // Set direction
   int tmpDir = 0;
@@ -280,25 +281,48 @@ void stepTo(int ang, int duration) {
   int tmpDur = 3000;
   
   // Calculate & Fire steps
-  // 1. if < 360, do simple
-  // 2. if > 360, calc wrap around
+  // 1. if min/max, do offset only (Will not fire if both are equal)
+  // 2. if < 360, do simple
+  // 3. if > 360, calc wrap around
   float stepOffset;
-  if (angAbs < 360) {
+  if (thetaMin != thetaMax) {
+    bool isInside = true;
+    // Logic:
+    // 1. remove out of bounds
+    // 2. get steps to move from current
+    // 3. update with offset in mind
+
+    // 1. Determine inside or outside, enforce limits
+    if (thetaMin > thetaMax) {
+      // This is outside (EX: 340 -> 45)
+      isInside = false;
+      if (ang > thetaMin) ang = thetaMin;
+      if (ang < thetaMax) ang = thetaMax;
+    } else {
+      // This is inside (EX: 45 -> 340)
+      if (ang < thetaMin) ang = thetaMin;
+      if (ang > thetaMax) ang = thetaMax;
+    }
+    SerialUSB.print("thetaAng: ");
+    SerialUSB.println(ang);
+    //TODO: KEEP GOING HERE--------------------------------------
+    stepOffset = (angAbs / 360) * stepTotal;
+  } else if (angAbs < 360) {
     stepOffset = (angAbs / 360) * stepTotal;
   } else {
     int rem = ang % 360;
-    float remTotal = (ang - rem) / 360;
-    float remSteps = (remTotal - 1) * stepTotal;
-    float angSteps = (angAbs / 360) * stepTotal;
-    float startSteps = (tmpStart / 360) * stepTotal;
+    // types maths requires likes types
+    float remF = rem;
+    float tmpStartF = tmpStart;
+    float remSteps = remF / 360 * stepTotal;
+    float angSteps = round(angAbs / 360) * stepTotal;
+    float startSteps = tmpStartF / 360 * stepTotal;
     
     // revolution times * total steps + angle total steps - current taken steps
     stepOffset = remSteps + angSteps - startSteps;
 
     // Reset start angle so when we execute and end up on the far side of 360, its okay
     ang = rem;
-    SerialUSB.print(" ang: ");
-    SerialUSB.println(ang);
   }
 
   //  crude convert to integer :P
@@ -308,9 +332,8 @@ void stepTo(int ang, int duration) {
   // Finally, angle correction
   delay(40);
   int finAngle = readDegAngle();
-    SerialUSB.print(" finAngle: ");
-    SerialUSB.println(finAngle);
-  if (finAngle != ang) stepTo(ang, 400);
+  int angRemaning = ang % 360;
+//  if (finAngle != angRemaning) stepTo(angRemaning, 400);
 }
 
 
@@ -336,6 +359,9 @@ void serialMenu() {
   SerialUSB.println(" m  -  print main menu");
   SerialUSB.println(" p  -  print angle");
   SerialUSB.println(" x  -  print motor step total");
+  SerialUSB.println(" ");
+  SerialUSB.println(" i  -  set Min - i000 -> i30, use DEG");
+  SerialUSB.println(" o  -  set Max - o000 -> i270, use DEG");
   SerialUSB.println("");
 }
 
@@ -375,6 +401,20 @@ void serialOptions(String stringToParse) {
     case 'r': //new setpoint
       stepsToGo = getCommandPayload(stringToParse);
       stepTo(stepsToGo, 3000);
+      break;
+
+    case 'i': // Set Min
+      stepsToGo = getCommandPayload(stringToParse);
+      if (stepsToGo > 360) stepsToGo = 360;
+      if (stepsToGo < 0) stepsToGo = 0;
+      setMin(stepsToGo);
+      break;
+
+    case 'o': // Set Max
+      stepsToGo = getCommandPayload(stringToParse);
+      if (stepsToGo > 360) stepsToGo = 360;
+      if (stepsToGo < 0) stepsToGo = 0;
+      setMax(stepsToGo);
       break;
 
     case 'm':
