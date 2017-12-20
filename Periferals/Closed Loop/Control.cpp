@@ -269,16 +269,6 @@ void stepTo(int ang, int duration) {
   // Get steps needed
   int angDiff = tmpStart - ang;
   float angAbs = abs(angDiff);
-//
-//  // Set direction
-//  int tmpDir = 0;
-
-//  if (angDiff < 0) tmpDir = 1;
-//  else tmpDir = 0;
-//  setDirection(tmpDir);
-
-//  // Set duration (TODO:)
-//  int tmpDur = 3000;
   
   // Calculate & Fire steps
   float stepOffset;
@@ -291,9 +281,6 @@ void stepTo(int ang, int duration) {
 
     // 1. Determine inside or outside, enforce limits
     if (thetaMin > thetaMax) {
-
-//      // Use stored direction, since we can't assume we know everything here
-//      setDirection(direction);
 
       // SET boundary, if falls between min/max, check direction and truncate to dir TO side
       if (angF <= thetaMin && angF >= thetaMax) {
