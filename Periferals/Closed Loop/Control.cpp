@@ -461,8 +461,25 @@ void serialOptions(String stringToParse) {
 // - easing
 // - set min/max
 // - calibrate
-void serialMachineMenu() {
-  SerialUSB.println("TODO: Machine Version!");
+void serialMachineMenu(String inpt) {
+  char *str;
+  char sz[24];
+  char *p = sz;
+  int ii = 0;
+  int cmds[3];
+  String cmd = inpt.charAt(0);
+  String args = inpt.remove(0,1);
+  inpt.toCharArray(sz, 24);
+  SerialUSB.println("Machine Version!");
+  SerialUSB.print("cmd: ");
+  SerialUSB.println(cmd);
+  SerialUSB.println("strtok: ");
+  while ((str = strtok(p, ","))) {
+    cmds[ii] = String(str).toInt();
+    Serial.println(cmds[ii]);
+    p = NULL;
+    ii++;
+  }
 }
 
 void serialCheck() {
@@ -481,6 +498,7 @@ void serialCheck() {
   }
   // If a complete message is available, parse it, then clear the buffer before returning
   if (inputStringComplete == true) {
+    serialMachineMenu(inputString);
     serialOptions(inputString);
     inputString = "";
     inputStringComplete = false;
