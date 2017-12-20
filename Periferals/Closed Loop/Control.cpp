@@ -269,16 +269,16 @@ void stepTo(int ang, int duration) {
   // Get steps needed
   int angDiff = tmpStart - ang;
   float angAbs = abs(angDiff);
+//
+//  // Set direction
+//  int tmpDir = 0;
 
-  // Set direction
-  int tmpDir = 0;
+//  if (angDiff < 0) tmpDir = 1;
+//  else tmpDir = 0;
+//  setDirection(tmpDir);
 
-  if (angDiff < 0) tmpDir = 1;
-  else tmpDir = 0;
-  setDirection(tmpDir);
-
-  // Set duration (TODO:)
-  int tmpDur = 3000;
+//  // Set duration (TODO:)
+//  int tmpDur = 3000;
   
   // Calculate & Fire steps
   float stepOffset;
@@ -291,67 +291,33 @@ void stepTo(int ang, int duration) {
 
     // 1. Determine inside or outside, enforce limits
     if (thetaMin > thetaMax) {
-      // This is outside (EX: 340 -> 45)
-      if (angF > 360) angF = 360;
 
-      // Calculate boundary, limiting to intent
-      float minA = abs(thetaMin - angF);
-      float minB = abs(thetaMax - angF);
-      float shortest = min(minA, minB);
-      float shortAngF;
+//      // Use stored direction, since we can't assume we know everything here
+//      setDirection(direction);
 
-      if (minA == shortest) {
-        shortAngF = float(thetaMin);
-        setDirection(0);
+      // SET boundary, if falls between min/max, check direction and truncate to dir TO side
+      if (angF <= thetaMin && angF >= thetaMax) {
+        // truncate based on direction
+        // 0 => negative, 1 => positive
+        if (direction == 1) angF = thetaMax;
+        if (direction == 0) angF = thetaMin;
+      } else if (angF > 360) {
+        // This is outside (EX: 340 -> 45)
+        angF = 360;
       }
-      if (minB == shortest) {
-        shortAngF = float(thetaMax);
-        setDirection(1);
-      }
-      // SET boundaries
-      if (angF > thetaMax && angF < thetaMin && tmpStart > angF) angF = shortAngF;
-      if (angF > thetaMax && angF < thetaMin && tmpStart < angF) angF = shortAngF;
 
-      // 2. outside is extra logic, test which side of origin it falls
-      if ((tmpStart > thetaMin && ang > thetaMin) || (tmpStart > thetaMax && ang > thetaMax)) {
-        // EX: 340d -> 315d, 315d -> 340d
-        // EX: s=104d, 85d > 60d, = 90d
-        // TODO: Fix direction & distance!
-        SerialUSB.println("HERE--DONE");
-//        if (angF > thetaMax && angF < thetaMin && tmpStart > angF) angF = thetaMin;
-        stepOffset = (abs(angF - tmpStart) / 360) * stepTotal;
+      // 2. Get total steps!
+      if (angF >= thetaMin && tmpStart <= thetaMax) {
+        // longest (angF = 120, tmpStart = 30)
+        stepOffset = ((abs(360 - angF) + tmpStart) / 360) * stepTotal;
+      } else if (angF <= thetaMax && tmpStart >= thetaMin) {
+        // longest (angF = 15, tmpStart = 210)
+        stepOffset = ((abs(360 - tmpStart) + angF) / 360) * stepTotal;
       } else {
-
-        // If we hit the boundaries, calc steps that dont exceed
-        if (angF == thetaMax || angF == thetaMin) {
-          // NOTE: we're using shortest, just do math for short jumps
-          // EX: s=34d, 65d < 90d, = 60d
-          stepOffset = (abs(angF - tmpStart) / 360) * stepTotal;
-        } else if (tmpStart > thetaMin || tmpStart > thetaMax) {
-          // If we start on the high side
-          // - EX: 315d -> 20d
-          if (angF > thetaMin) stepOffset = (((360 - tmpStart) + (360 - angF)) / 360) * stepTotal;
-          if (angF < thetaMax) stepOffset = (((360 - tmpStart) + angF) / 360) * stepTotal;
-        } else if (tmpStart < thetaMax || tmpStart < thetaMin) {
-          // If we start on the low side
-          // - EX: 20d -> 315d
-          if (angF < thetaMin) stepOffset = (abs(angF - tmpStart) / 360) * stepTotal;
-          if (angF > thetaMin) stepOffset = (((360 - angF) + tmpStart) / 360) * stepTotal;
-
-          // Modify direction based on start & angle
-          if (angF < thetaMin && angF > tmpStart) setDirection(1);
-          if (angF < thetaMin && angF < tmpStart) setDirection(0);
-        }
-        SerialUSB.print("tmpDir: ");
-        SerialUSB.println(tmpDir);
-        SerialUSB.println(angF);
-        SerialUSB.println(tmpStart);
-        SerialUSB.println(thetaMin);
-        SerialUSB.println(thetaMax);
-        SerialUSB.println(stepOffset);
+        // shortest (ang same side as start)
+        stepOffset = (abs(tmpStart - angF) / 360) * stepTotal;
       }
     } else {
-      SerialUSB.println("HERE inside");
       // This is inside (EX: 45 -> 340)
       if (angF < thetaMin) angF = thetaMin;
       if (angF > thetaMax) angF = thetaMax;
@@ -361,7 +327,6 @@ void stepTo(int ang, int duration) {
   } else if (angAbs < 360) {
     // SIMPLE MOVE LOGIC
     stepOffset = (angAbs / 360) * stepTotal;
-    SerialUSB.println("HERE simple");
   } else {
     // WRAP AROUND LOGIC
     // 1. if < 360, do simple
@@ -379,7 +344,6 @@ void stepTo(int ang, int duration) {
 
     // Reset start angle so when we execute and end up on the far side of 360, its okay
     angF = rem;
-    SerialUSB.println("HERE Wrap around");
   }
 
   //  crude convert to integer :P
@@ -390,10 +354,14 @@ void stepTo(int ang, int duration) {
   delay(40);
   int finAngle = readDegAngle();
   int angI = angF;
-  int angRemaning = angI % 360;
   SerialUSB.print("finAngle: ");
   SerialUSB.println(finAngle);
-//  if (finAngle != angRemaning) stepTo(angRemaning, 400);
+  if (finAngle != angI) {
+    // Set direction then go
+    if (angI > finAngle) setDirection(1);
+    if (angI < finAngle) setDirection(0);
+    stepTo(angI, 400);
+  }
 }
 
 
@@ -411,7 +379,7 @@ void serialMenu() {
   SerialUSB.println(" s  -  step short distance");
   SerialUSB.println(" u  -  steps demo: 3400 default");
   SerialUSB.println(" t  -  step input: t0000");
-  SerialUSB.println(" d  -  dir: d0 -> 0 | 1");
+  SerialUSB.println(" d  -  dir: d0 -> 0 = negative | 1 = positive");
   SerialUSB.println(" ");
   SerialUSB.println(" c  -  calibrate - finds steps, angle, zero, etc");
   SerialUSB.println(" r  -  set point - r000 -> r270, use DEG");
@@ -518,3 +486,4 @@ void serialCheck() {
     inputStringComplete = false;
   }
 }
+
