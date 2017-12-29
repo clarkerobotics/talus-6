@@ -24,7 +24,11 @@ void setupI2C() {
 }
 
 void enable(bool en) {
-  SerialUSB.println("TODO: enable");
+  SerialUSB.print("enable: ");
+  SerialUSB.println(enabled);
+  en = !en;
+  enabled = en;
+  digitalWrite(enablePin, en);
 }
 
 // Settings
@@ -363,10 +367,12 @@ void serialMenu() {
   SerialUSB.println("");
   SerialUSB.println("----- Closed Loop Control -----");
   SerialUSB.println("");
-  SerialUSB.println(" s  -  step short distance");
+  SerialUSB.println(" s  -  50 step distance");
+  SerialUSB.println(" a  -  250 step distance");
   SerialUSB.println(" u  -  steps demo: 3400 default");
   SerialUSB.println(" t  -  step input: t0000");
   SerialUSB.println(" d  -  dir: d0 -> 0 = negative | 1 = positive");
+  SerialUSB.println(" e  -  enable toggle");
   SerialUSB.println(" ");
   SerialUSB.println(" c  -  calibrate - finds steps, angle, zero, etc");
   SerialUSB.println(" r  -  set point - r000 -> r270, use DEG");
@@ -402,6 +408,13 @@ void serialOptions(String stringToParse) {
     case 's': //step short distance
       steps(50);
       printAngle();
+      break;
+    case 'a': //step short distance
+      steps(250);
+      printAngle();
+      break;
+    case 'e':
+      enable(enabled);
       break;
     case 't': //steps & amount
       stepsToGo = getCommandPayload(stringToParse);
@@ -443,9 +456,8 @@ void serialOptions(String stringToParse) {
 }
 
 // for non-peoples
-// - Send distance, time
+// - Send distance, direction, time
 // - lock - auto correct if change
-// - easing
 // - set min/max
 // - calibrate
 void serialMachineMenu(String inpt) {
