@@ -38,11 +38,11 @@ bus = i2c.open(1, function (er) {
   //   })
   // }, 1500)
 
-  // Clears current buffer data
-  const start = '-'.padEnd(60)
-  bus.i2cWrite(0x10, 32, new Buffer(start), () => {
-    console.log('Master Write Start')
-  })
+  // // Clears current buffer data
+  // const start = '-'.padEnd(60)
+  // bus.i2cWrite(0x10, 60, new Buffer(start), () => {
+  //   console.log('Master Write Start')
+  // })
 
   let h = 0
   setInterval(() => {
@@ -60,13 +60,14 @@ bus = i2c.open(1, function (er) {
     //   console.log('HERE writeQuick')
     // })
 
-    const msg = `0x10,t000,230,4000,cb+${h},${+new Date()}-`.padEnd(60)
+    // .padEnd(60)
+    const msg = `000<0x10,t000,230,1000,cb+${h},${+new Date()}>000`
     // const msg = `cb+${h}`
     bus.i2cWrite(0x10, msg.length, new Buffer(msg), () => {
       console.log('Master Write Finished', msg)
     })
     h++
-  }, 500)
+  }, 5000)
 
   // (function readTempHigh() {
   //   i2c1.readWord(DS1621_ADDR, DS1621_CMD_ACCESS_TH, function (err, stuff) {
