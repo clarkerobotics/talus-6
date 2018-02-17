@@ -18,6 +18,10 @@ int minSpeed = 2000;
 
 // Pins
 int ledPin = 13;
-int dirPin = 14;
-int enablePin = 15;
-int stepPin = 23;
+//int dirPin = 14;
+//int enablePin = 16;
+//int stepPin = 15;
+int enablePin = 14;
+int stepPin = 3;
+int dirPin = 4;
+
