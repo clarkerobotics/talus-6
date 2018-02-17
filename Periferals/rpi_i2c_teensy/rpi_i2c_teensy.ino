@@ -7,8 +7,8 @@ void receiveEvent(size_t count);
 void requestEvent(void);
 
 int ledPin = 13;
-int address = 0x10;
-String addrs = "0x10";
+int address = 0x60;
+String addrs = "0x60";
 
 #define MEM_LEN 50
 int counter = 0;
