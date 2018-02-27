@@ -66,15 +66,17 @@ bus = i2c.open(1, function (er) {
     //   console.log('Master Write Finished', msg)
     // })
 
-    for (var i = 1; i < 7; i++) {
-      const msg = `000<0x${i}0,t000,230,${i}00,cb+${h},${+new Date()}>000`
+    var i = 1;
+    // for (var i = 1; i < 7; i++) {
+      // MSG FORMAT: <ID,DIRECTION,MENU-CMD,EXTENDED-DATA,CB-ID>
+      const msg = `000<0x${i}0,${Math.round((+new Date() + '').substring(11,13) / 100)},t${(+new Date() + '').substring(9,13)},${i}00,cb+${h}>000`
       // const msg = `cb+${h}`
       bus.i2cWrite(parseInt(`0x${i}0`, 16), msg.length, new Buffer(msg), () => {
         // console.log('Master Write Finished', msg)
       })
-    }
+    // }
     console.log('Master Write Finished x6')
-    h++
+    // h++
   }, 2000)
 
   // (function readTempHigh() {
