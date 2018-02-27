@@ -1,10 +1,13 @@
 #include <math.h>
-#include <Wire.h>
-#include <ams_as5048b.h>
+//#include <Wire.h>
+//#include <ams_as5048b.h>
+//#include <i2c_t3.h> 
+#include <ams_as5048b_t3.h>
 #include <EEPROM.h>
 #include "State.h"
 
 AMS_AS5048B amsInstance;
+//char* addrs = "0x10";
 
 void setupPins() {
   pinMode(ledPin, OUTPUT);
@@ -16,11 +19,6 @@ void setupPins() {
 void setDirection(int dir) {
   if (dir == 1) digitalWrite(dirPin, HIGH);
   else digitalWrite(dirPin, LOW);
-}
-
-void setupI2C() {
-  amsInstance.begin();
-  setDirection(0);
 }
 
 void enable(bool en) {
@@ -95,6 +93,7 @@ int readDegAngle() {
 
 // returns angles
 void printAngle() {
+  internalBusy = true;
   int angleRaw = readRawAngle();
   int angleDeg = readDegAngle();
   SerialUSB.print("Angle Raw: ");
@@ -102,6 +101,7 @@ void printAngle() {
   SerialUSB.print(", Deg: ");
   SerialUSB.print(angleDeg);
   SerialUSB.println("");
+  internalBusy = false;
 }
 // returns stored motor steps
 void printMotorSteps() {
@@ -165,6 +165,7 @@ void steps(int count) {
   float speed = minSpeed;
   float ease = 0;
   float p = 0;
+  internalBusy = true;
 
   // Step through half
   for (int i = 1; i < quarter; i++) {
@@ -188,6 +189,7 @@ void steps(int count) {
     step(160);
     delayMicroseconds(speed);
   }
+  internalBusy = false;
 }
 
 int getFullRevolutionSteps() {
@@ -356,12 +358,149 @@ void stepTo(int ang, int duration) {
 }
 
 
+
+
+
 float getCommandPayload(String stringWithPayload) {
   // Extracts the numeric payload from a command
   // Just skip the first character to get the payload, and parse it as a float
   String payload = stringWithPayload.substring(1);
   return payload.toFloat();
 }
+
+int getCommandPayloadInt(String stringWithPayload) {
+  // Extracts the numeric payload from a command
+  // Just skip the first character to get the payload, and parse it as a float
+  String payload = stringWithPayload.substring(1);
+  return payload.toInt();
+}
+
+
+
+int counter = 0;
+void assignNewData() {
+  if (newData == true) {
+    newData = false;
+    counter = 0;
+
+    // Splitting strings... or splitting hairs?!
+    char *token = strtok(receivedData, ",");
+    if (token) {
+       // You've got to COPY the data pointed to
+       strArgs[counter++] = strdup(token);
+       // Keep parsing the same string
+       token = strtok(NULL, ",");
+
+       while(token) {
+          // You've got to COPY the data pointed to
+          strArgs[counter++] = strdup(token);
+          token = strtok(NULL, ",");
+       }
+
+       char* addy = strArgs[0];
+       if (addy[2] == addrs[2]) {
+          // TODO: Execute function!
+          SerialUSB.print("ADD: ");
+          SerialUSB.print(strArgs[0]);
+          SerialUSB.print(", CMD: ");
+          SerialUSB.println(strArgs[1]);
+//          SerialUSB.print(", ANGL: ");
+//          SerialUSB.print(strArgs[2]);
+//          SerialUSB.print(", DUR: ");
+//          SerialUSB.print(strArgs[3]);
+//          SerialUSB.print(", CB: ");
+//          SerialUSB.print(strArgs[4]);
+//          SerialUSB.print(", TS: ");
+//          SerialUSB.println(strArgs[5]);
+          // for fun, set duration of LED to the duration of cmd
+//          digitalWrite(ledPin, HIGH);
+//          delay(atoi(strArgs[3]));
+//          digitalWrite(ledPin, LOW);
+//          SerialUSB.println("-");
+
+          // TODO: Execute position command
+          if (sizeof(strArgs[1]) > 1) {
+            int stepsToGo = 0;
+            stepsToGo = getCommandPayloadInt(strArgs[1]);
+            SerialUSB.println(stepsToGo);
+            // TODO: This is breaking, seems like we're out of memory??
+            if (stepsToGo > 0) steps(stepsToGo);
+//            printAngle();
+          }
+       }
+    }
+
+    // Reset for future use
+    memset(receivedData, 0, sizeof(receivedData));
+    counter = 0;
+  }
+}
+
+
+void recvWireDataWithMarkers(uint count) {
+  boolean recvInProgress = false;
+  int ndx = 0;
+  char wireData[50];
+  char startMarker = '<';
+  char endMarker = '>';
+  char rc;
+
+  // copy Rx data to receivedData
+  Wire1.read(wireData, count);
+
+  // Loop through and only find data that we want
+  for (size_t ra = 0; ra < count; ra++) {
+    rc = wireData[ra];
+    if (rc == endMarker) break;
+    if (recvInProgress == true && rc != endMarker) {
+      receivedData[ndx] = rc;
+      ndx++;
+    }
+    if (rc == startMarker) recvInProgress = true;
+  }
+  newData = (sizeof(receivedData) > 1) ? true : false;
+  ndx = 0;
+
+  // Let's do this
+  if (newData) assignNewData();
+}
+
+//
+// handle Rx Event (incoming I2C data)
+void receiveEvent(uint count) {
+  if (internalBusy) return;
+  if (count < 1) return;
+  memset(receivedData, 0, sizeof(receivedData));
+  recvWireDataWithMarkers(count);
+}
+
+//
+// handle Tx Event (outgoing I2C data)
+void requestEvent() {
+  // fill Tx buffer (send full mem)
+  Wire1.write(receivedData, 50);
+}
+
+
+
+
+void setupI2C() {
+  amsInstance.begin();
+  setDirection(0);
+
+  // TODO: Refactor
+  Wire1.begin(address);
+
+  // Data init
+  received = 0;
+  memset(receivedData, 0, sizeof(receivedData));
+
+  // register events
+  Wire1.onReceive(receiveEvent);
+  Wire1.onRequest(requestEvent);
+}
+
+
 
 void serialMenu() {
   SerialUSB.println("");
@@ -382,7 +521,7 @@ void serialMenu() {
   SerialUSB.println(" x  -  print motor step total");
   SerialUSB.println(" ");
   SerialUSB.println(" i  -  set Min - i000 -> i30, use DEG");
-  SerialUSB.println(" o  -  set Max - o000 -> i270, use DEG");
+  SerialUSB.println(" o  -  set Max - o000 -> o270, use DEG");
   SerialUSB.println("");
 }
 
@@ -461,6 +600,8 @@ void serialOptions(String stringToParse) {
 // - set min/max
 // - calibrate
 void serialMachineMenu(String inpt) {
+  SerialUSB.print("inpt: ");
+  SerialUSB.println(inpt);
   char *str;
   char sz[24];
   char *p = sz;
@@ -482,12 +623,13 @@ void serialMachineMenu(String inpt) {
 }
 
 void serialCheck() {
+  if (internalBusy) return;
   // Checks for and processes any serial input
   static String inputString = "";
   static boolean inputStringComplete = false;
-  while (Serial.available()) {
+  while (SerialUSB.available()) {
     // Read and add the new character
-    char inChar = (char)Serial.read();
+    char inChar = (char)SerialUSB.read();
     inputString += inChar;
     // if the incoming character is a newline, then the string is complete
     if (inChar == '\n') {
@@ -497,7 +639,7 @@ void serialCheck() {
   }
   // If a complete message is available, parse it, then clear the buffer before returning
   if (inputStringComplete == true) {
-    serialMachineMenu(inputString);
+//    serialMachineMenu(inputString);
     serialOptions(inputString);
     inputString = "";
     inputStringComplete = false;

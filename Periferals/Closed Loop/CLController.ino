@@ -10,7 +10,7 @@ void setup() {
   setupPins();                      // configure pins
   digitalWrite(ledPin, HIGH);       // turn LED on
 
-  SerialUSB.begin(115200);
+  SerialUSB.begin(9600);
   delay(300);                       // This delay seems to make it easier to establish a connection
   serialMenu();                     // Prints menu to serial monitor
   setupI2C();                       // Communicating with encoder
@@ -23,4 +23,3 @@ void loop() {
   //must have this execute in loop for serial commands to function
   serialCheck();
 }
-

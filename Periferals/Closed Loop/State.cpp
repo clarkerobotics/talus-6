@@ -1,3 +1,4 @@
+#include <String.h>
 // State variables for the control loop
 
 // Vars
@@ -18,10 +19,23 @@ int minSpeed = 2000;
 
 // Pins
 int ledPin = 13;
-//int dirPin = 14;
-//int enablePin = 16;
-//int stepPin = 15;
 int enablePin = 14;
 int stepPin = 3;
 int dirPin = 4;
 
+//int dirPin = 14;
+//int enablePin = 16;
+//int stepPin = 15;
+
+// Specific Chip Params
+int address = 0x10;
+const char* addrs = "0x10";
+
+// TODO: Refactor this :)
+const int MEM_LEN = 50;
+const int numChars = MEM_LEN;
+volatile int received;
+volatile char receivedData[numChars];
+volatile char* strArgs[7];
+volatile bool newData = false;
+volatile bool internalBusy = false;

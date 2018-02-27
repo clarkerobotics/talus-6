@@ -48,6 +48,14 @@
 	// - stepTo(angle, duration)
 	void stepTo(int ang, int duration);
 
+
+  void recvWithStartEndMarkers();
+  void recvWireDataWithMarkers(uint count);
+  void assignNewData();
+  void receiveEvent(uint count);
+  void requestEvent();
+
+
 	// - serialCheck()
 	void serialCheck();
 
