@@ -1,13 +1,9 @@
 #include <math.h>
-//#include <Wire.h>
-//#include <ams_as5048b.h>
-//#include <i2c_t3.h> 
 #include <ams_as5048b_t3.h>
 #include <EEPROM.h>
 #include "State.h"
 
 AMS_AS5048B amsInstance;
-//char* addrs = "0x10";
 
 void setupPins() {
   pinMode(ledPin, OUTPUT);
@@ -17,13 +13,13 @@ void setupPins() {
 }
 
 void setDirection(int dir) {
+  internalBusy = true;
   if (dir == 1) digitalWrite(dirPin, HIGH);
   else digitalWrite(dirPin, LOW);
+  internalBusy = false;
 }
 
 void enable(bool en) {
-  SerialUSB.print("enable: ");
-  SerialUSB.println(enabled);
   en = !en;
   enabled = en;
   digitalWrite(enablePin, en);
@@ -88,6 +84,11 @@ int readRawAngle() {
 
 // returns deg angle
 int readDegAngle() {
+  bool hasErr = amsInstance.hasError;
+  if (hasErr != 0) {
+    SerialUSB.println("SENSOR READ ERR");
+    return 0;
+  }
   return amsInstance.angleR(3, true);
 }
 
@@ -111,18 +112,18 @@ void printMotorSteps() {
 
 // Optional: angle
 void setMin(long angle) {
-//  SerialUSB.print("setMin: ");
-//  SerialUSB.println(angle);
+  internalBusy = true;
   thetaMin = angle;
   saveSettings();
+  internalBusy = false;
 }
 
 // Optional: angle
 void setMax(long angle) {
-//  SerialUSB.print("setMax: ");
-//  SerialUSB.println(angle);
+  internalBusy = true;
   thetaMax = angle;
   saveSettings();
+  internalBusy = false;
 }
 
 // Easing: easeInSine
@@ -270,7 +271,14 @@ void calibrate() {
 // - travel & lock to given angle position
 void stepTo(int ang, int duration) {
   // Get start point
+  internalBusy = true;
   int tmpStart = readDegAngle();
+  SerialUSB.print("tmpStart");
+  SerialUSB.println(tmpStart);
+  if (!tmpStart) {
+    internalBusy = false;
+    return;
+  }
 
   // Get steps needed
   int angDiff = tmpStart - ang;
@@ -347,14 +355,15 @@ void stepTo(int ang, int duration) {
   delay(40);
   int finAngle = readDegAngle();
   int angI = angF;
-  SerialUSB.print("finAngle: ");
-  SerialUSB.println(finAngle);
+  // SerialUSB.print("finAngle: ");
+  // SerialUSB.println(finAngle);
   if (finAngle != angI) {
     // Set direction then go
     if (angI > finAngle) setDirection(1);
     if (angI < finAngle) setDirection(0);
     stepTo(angI, 400);
   }
+  internalBusy = false;
 }
 
 
@@ -375,6 +384,87 @@ int getCommandPayloadInt(String stringWithPayload) {
   return payload.toInt();
 }
 
+
+// for non-peoples
+// Handles i2c cmds
+// MSG FORMAT: <ID,DIRECTION,MENU-CMD,EXTENDED-DATA,CB-ID>
+// Examples:
+// 0x10 1 t1200 0 0 -> address 10, dir 1, cmd t1200, extra 0, cb 0
+// 0x20 0 e 0 1
+// 0x30 0 p 0 1
+// 0x40 1 s 1 0
+void machineCmdCenter() {
+//  digitalWrite(ledPin, HIGH);
+
+  // TODO: REMOVE
+  // SerialUSB.print("ADD: ");
+  // SerialUSB.print(strArgs[0]);
+  // SerialUSB.print(", DIR: ");
+  // SerialUSB.print(strArgs[1]);
+  // SerialUSB.print(", CMD: ");
+  // SerialUSB.print(strArgs[2]);
+  // SerialUSB.print(", EXT: ");
+  // SerialUSB.print(strArgs[3]);
+  // SerialUSB.print(", CB-ID: ");
+  // SerialUSB.println(strArgs[4]);
+
+  if (sizeof(strArgs[2]) > 0) {
+
+    // Use cmd args & EXECUTE!
+    int cmdInt = 0;
+    char cmdChar = strArgs[2][0];
+    SerialUSB.print("cmdChar: ");
+    SerialUSB.println(cmdChar);
+  
+    // Format Inputs
+    cmdInt = getCommandPayload(strArgs[2]);
+    setDirection(atoi(strArgs[1]));
+    SerialUSB.print("cmdInt: ");
+    SerialUSB.println(cmdInt);
+  
+    switch (cmdChar) {
+      // Quick Tests
+      case 'a':
+        steps(250);
+        break;
+      case 's':
+        steps(50);
+        break;
+  
+      // Commands
+      case 't':
+        steps(cmdInt);
+        break;
+      case 'e':
+        enable(enabled);
+        break;
+      case 'r':
+        stepTo(cmdInt, 3000);
+        break;
+      case 'd':
+        setDirection(direction);
+        break;
+  
+      // Settings
+      case 'i':
+        if (cmdInt > 360) cmdInt = 360;
+        if (cmdInt < 0) cmdInt = 0;
+        setMin(cmdInt);
+        break;
+      case 'o':
+        if (cmdInt > 360) cmdInt = 360;
+        if (cmdInt < 0) cmdInt = 0;
+        setMax(cmdInt);
+        break;
+      case 'n':
+        stepNumber = cmdInt;
+        break;
+    }
+  }
+
+  // Cleanup
+//  digitalWrite(ledPin, LOW);
+}
 
 
 int counter = 0;
@@ -397,37 +487,9 @@ void assignNewData() {
           token = strtok(NULL, ",");
        }
 
+       // If address matches, fire cmd
        char* addy = strArgs[0];
-       if (addy[2] == addrs[2]) {
-          // TODO: Execute function!
-          SerialUSB.print("ADD: ");
-          SerialUSB.print(strArgs[0]);
-          SerialUSB.print(", CMD: ");
-          SerialUSB.println(strArgs[1]);
-//          SerialUSB.print(", ANGL: ");
-//          SerialUSB.print(strArgs[2]);
-//          SerialUSB.print(", DUR: ");
-//          SerialUSB.print(strArgs[3]);
-//          SerialUSB.print(", CB: ");
-//          SerialUSB.print(strArgs[4]);
-//          SerialUSB.print(", TS: ");
-//          SerialUSB.println(strArgs[5]);
-          // for fun, set duration of LED to the duration of cmd
-//          digitalWrite(ledPin, HIGH);
-//          delay(atoi(strArgs[3]));
-//          digitalWrite(ledPin, LOW);
-//          SerialUSB.println("-");
-
-          // TODO: Execute position command
-          if (sizeof(strArgs[1]) > 1) {
-            int stepsToGo = 0;
-            stepsToGo = getCommandPayloadInt(strArgs[1]);
-            SerialUSB.println(stepsToGo);
-            // TODO: This is breaking, seems like we're out of memory??
-            if (stepsToGo > 0) steps(stepsToGo);
-//            printAngle();
-          }
-       }
+       if (addy[2] == addrs[2]) machineCmdCenter();
     }
 
     // Reset for future use
@@ -476,19 +538,19 @@ void receiveEvent(uint count) {
 
 //
 // handle Tx Event (outgoing I2C data)
-void requestEvent() {
-  // fill Tx buffer (send full mem)
-  Wire1.write(receivedData, 50);
-}
+//void requestEvent() {
+//  // fill Tx buffer (send full mem)
+//  Wire1.write(receivedData, 50);
+//}
 
 
 
-
+// Communicate with Sensors & External
 void setupI2C() {
   amsInstance.begin();
   setDirection(0);
 
-  // TODO: Refactor
+  // Listens to External Coms
   Wire1.begin(address);
 
   // Data init
@@ -497,129 +559,108 @@ void setupI2C() {
 
   // register events
   Wire1.onReceive(receiveEvent);
-  Wire1.onRequest(requestEvent);
+//  Wire1.onRequest(requestEvent);
 }
 
 
 
 void serialMenu() {
+  SerialUSB.println("---- Closed Loop Control ----");
   SerialUSB.println("");
-  SerialUSB.println("----- Closed Loop Control -----");
-  SerialUSB.println("");
+  SerialUSB.println(" Quick Tests");
+  SerialUSB.println(" u  -  steps demo: 3400 default");
   SerialUSB.println(" s  -  50 step distance");
   SerialUSB.println(" a  -  250 step distance");
-  SerialUSB.println(" u  -  steps demo: 3400 default");
+  SerialUSB.println(" ");
+  SerialUSB.println(" Commands");
   SerialUSB.println(" t  -  step input: t0000");
-  SerialUSB.println(" d  -  dir: d0 -> 0 = negative | 1 = positive");
   SerialUSB.println(" e  -  enable toggle");
-  SerialUSB.println(" ");
-  SerialUSB.println(" c  -  calibrate - finds steps, angle, zero, etc");
   SerialUSB.println(" r  -  set point - r000 -> r270, use DEG");
+  SerialUSB.println(" d  -  dir: d0 -> 0 = negative | 1 = positive");
   SerialUSB.println(" ");
+  SerialUSB.println(" Settings");
+  SerialUSB.println(" i  -  set Min - i000 -> i30, use DEG");
+  SerialUSB.println(" o  -  set Max - o000 -> o270, use DEG");
+  SerialUSB.println(" n  -  set Step Number - n000 -> n3994, use full revolution step count");
+  SerialUSB.println(" ");
+  SerialUSB.println(" Utilities");
   SerialUSB.println(" m  -  print main menu");
   SerialUSB.println(" p  -  print angle");
   SerialUSB.println(" x  -  print motor step total");
-  SerialUSB.println(" ");
-  SerialUSB.println(" i  -  set Min - i000 -> i30, use DEG");
-  SerialUSB.println(" o  -  set Max - o000 -> o270, use DEG");
+  SerialUSB.println(" c  -  calibrate - finds steps, angle, zero, etc");
   SerialUSB.println("");
 }
 
 //Monitors serial for commands.  Must be called in routinely in loop for serial interface to work.
 void serialOptions(String stringToParse) {
-  int stepsToGo = 0;
-  char inChar = stringToParse.charAt(0);
+  int cmdInt = 0;
+  char cmdChar = stringToParse.charAt(0);
 
-  switch (inChar) {
-    case 'c': //calibrate
-      calibrate();
-      break;
-    case 'p': //print
-      printAngle();
-      break;
-    case 'x': //print motor steps
-      printMotorSteps();
-      break;
-    case 'u': //steps test
+  // Format Inputs
+  cmdInt = getCommandPayload(stringToParse);
+
+  switch (cmdChar) {
+    // Quick Tests
+    case 'u':
       steps(3400);
       printAngle();
       break;
-    case 's': //step short distance
+    case 's':
       steps(50);
       printAngle();
       break;
-    case 'a': //step short distance
+    case 'a':
       steps(250);
+      printAngle();
+      break;
+
+    // Commands
+    case 't':
+      steps(cmdInt);
       printAngle();
       break;
     case 'e':
       enable(enabled);
       break;
-    case 't': //steps & amount
-      stepsToGo = getCommandPayload(stringToParse);
-      steps(stepsToGo);
-      printAngle();
+    case 'r':
+      stepTo(cmdInt, 3000);
       break;
-    case 'd': //dir
-      direction = getCommandPayload(stringToParse);
+    case 'd':
+      direction = cmdInt;
       setDirection(direction);
       break;
 
-    case 'r': //new setpoint
-      stepsToGo = getCommandPayload(stringToParse);
-      stepTo(stepsToGo, 3000);
+    // Settings
+    case 'i':
+      if (cmdInt > 360) cmdInt = 360;
+      if (cmdInt < 0) cmdInt = 0;
+      setMin(cmdInt);
+      break;
+    case 'o':
+      if (cmdInt > 360) cmdInt = 360;
+      if (cmdInt < 0) cmdInt = 0;
+      setMax(cmdInt);
+      break;
+    case 'n':
+      stepNumber = cmdInt;
+      printMotorSteps();
       break;
 
-    case 'i': // Set Min
-      stepsToGo = getCommandPayload(stringToParse);
-      if (stepsToGo > 360) stepsToGo = 360;
-      if (stepsToGo < 0) stepsToGo = 0;
-      setMin(stepsToGo);
-      break;
-
-    case 'o': // Set Max
-      stepsToGo = getCommandPayload(stringToParse);
-      if (stepsToGo > 360) stepsToGo = 360;
-      if (stepsToGo < 0) stepsToGo = 0;
-      setMax(stepsToGo);
-      break;
-
+    // Utilities
     case 'm':
       serialMenu();
       break;
-
-    default:
+    case 'p':
+      printAngle();
+      break;
+    case 'x':
+      printMotorSteps();
+      break;
+    case 'c':
+      calibrate();
       break;
   }
 
-}
-
-// for non-peoples
-// - Send distance, direction, time
-// - lock - auto correct if change
-// - set min/max
-// - calibrate
-void serialMachineMenu(String inpt) {
-  SerialUSB.print("inpt: ");
-  SerialUSB.println(inpt);
-  char *str;
-  char sz[24];
-  char *p = sz;
-  int ii = 0;
-  int cmds[3];
-  String cmd = inpt.charAt(0);
-  String args = inpt.remove(0,1);
-  inpt.toCharArray(sz, 24);
-  SerialUSB.println("Machine Version!");
-  SerialUSB.print("cmd: ");
-  SerialUSB.println(cmd);
-  SerialUSB.println("strtok: ");
-  while ((str = strtok(p, ","))) {
-    cmds[ii] = String(str).toInt();
-    Serial.println(cmds[ii]);
-    p = NULL;
-    ii++;
-  }
 }
 
 void serialCheck() {
@@ -639,7 +680,6 @@ void serialCheck() {
   }
   // If a complete message is available, parse it, then clear the buffer before returning
   if (inputStringComplete == true) {
-//    serialMachineMenu(inputString);
     serialOptions(inputString);
     inputString = "";
     inputStringComplete = false;

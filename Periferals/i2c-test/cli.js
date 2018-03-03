@@ -2,22 +2,20 @@ const i2c = require('i2c-bus')
 
 /*
   ----- Closed Loop Control -----
-  s  -  50 step distance
+  Quick Tests
   a  -  250 step distance
-  u  -  steps demo: 3400 default
+  s  -  50 step distance
+
+  Commands
   t  -  step input: t0000
-  d  -  dir: d0 -> 0 = negative | 1 = positive
-  e  -  enable toggle
-
-  c  -  calibrate - finds steps, angle, zero, etc
+  e  -  enable toggle - boolean
   r  -  set point - r000 -> r270, use DEG
+  d  -  dir: d0 -> 0 = negative | 1 = positive
 
-  m  -  print main menu
-  p  -  print angle
-  x  -  print motor step total
-
+  Settings
   i  -  set Min - i000 -> i30, use DEG
   o  -  set Max - o000 -> o270, use DEG
+  n  -  set Step Number - n000 -> n3994, use full revolution step count
 */
 
 // Examples:
@@ -36,7 +34,7 @@ const bus = i2c.open(1, function (er) {
   if (er) return;
   const msg = `000<${params[0]},${params[1]},${params[2]},${params[3]},cb+${params[4]}>000`
 
-  bus.i2cWrite(parseInt(s.id, 16), msg.length, new Buffer(msg), () => {
+  bus.i2cWrite(parseInt(params[0], 16), msg.length, new Buffer(msg), () => {
     console.log('Action Finished', params[0], params[1], params[2])
   })
 });

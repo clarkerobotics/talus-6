@@ -62,8 +62,7 @@
 	// - serialMenu()
 	void serialMenu();
 
-	// - serialMachineMenu() // for non-peoples
-	void serialMachineMenu();
+	void machineCmdCenter();
 
 #endif
 
